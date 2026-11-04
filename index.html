@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0a0e17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Joey">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<title>Joey &amp; Ryan</title>
+<style>
+  :root { --bg:#0a0e17; --panel:#121826; --line:#1f2738; --text:#e8ecf4; --muted:#7d879c; --c:#46b9ff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
+  .app { display:flex; flex-direction:column; height:100%; max-width:560px; margin:0 auto;
+    padding:calc(env(safe-area-inset-top) + 8px) 16px calc(12px + env(safe-area-inset-bottom)); }
+  .top { display:flex; align-items:center; justify-content:center; position:relative; }
+  .tabs { display:flex; gap:8px; }
+  .tab { border:1px solid #243049; background:transparent; color:var(--muted); padding:7px 18px;
+    border-radius:999px; font-size:15px; }
+  .tab.on { color:var(--bg); background:var(--c); border-color:var(--c); font-weight:600; }
+  .gear { position:absolute; right:0; background:none; border:none; color:var(--muted); padding:8px; }
+  .gear svg { width:22px; height:22px; }
+  .stage { display:flex; justify-content:center; margin-top:4px; }
+  canvas { width:min(70vw,300px); height:min(70vw,300px); }
+  .status { text-align:center; color:var(--muted); font-size:14px; min-height:20px; }
+  .log { flex:1 1 auto; overflow-y:auto; margin:8px 0; display:flex; flex-direction:column; gap:8px;
+    -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 16px); padding-top:12px; }
+  .msg { padding:9px 13px; border-radius:14px; max-width:88%; line-height:1.38; font-size:15px; white-space:pre-wrap; }
+  .me { align-self:flex-end; background:#1d2638; color:#cfd6e4; }
+  .bot { align-self:flex-start; background:var(--panel); border-left:3px solid var(--mc,#46b9ff); }
+  .bot b { color:var(--mc,#46b9ff); font-weight:600; }
+  .err { align-self:center; color:#ff8a9a; font-size:13px; text-align:center; }
+  .src { margin-top:5px; font-size:12px; color:var(--muted); white-space:normal; }
+  .src a { color:#6fb6ff; margin-right:8px; }
+  .bar { display:flex; align-items:center; gap:10px; }
+  .bar input { flex:1; min-width:0; background:var(--panel); border:1px solid var(--line); color:var(--text);
+    border-radius:999px; padding:12px 16px; font-size:16px; outline:none; }
+  .mic { width:66px; height:66px; border-radius:50%; border:none; background:var(--c); color:var(--bg);
+    display:grid; place-items:center; flex:0 0 auto; box-shadow:0 0 22px -4px var(--c); }
+  .mic.live { animation:pulse 1.1s infinite; background:#ff4d6d; box-shadow:0 0 26px -2px #ff4d6d; }
+  .mic svg { width:28px; height:28px; }
+  @keyframes pulse { 50% { transform:scale(1.08); } }
+  /* settings */
+  .sheet { position:fixed; inset:0; background:rgba(5,8,14,.75); display:none; align-items:flex-end; z-index:5; }
+  .sheet.open { display:flex; }
+  .panel { width:100%; max-width:560px; margin:0 auto; background:#0f1522; border-top:1px solid var(--line);
+    border-radius:20px 20px 0 0; padding:18px 18px calc(18px + env(safe-area-inset-bottom)); max-height:92%; overflow-y:auto; }
+  .panel h3 { margin:4px 0 4px; } .panel p { color:var(--muted); font-size:13px; margin:4px 0 12px; line-height:1.4; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 5px; }
+  .panel input, .panel select { width:100%; background:var(--panel); border:1px solid var(--line); color:var(--text);
+    border-radius:12px; padding:11px 12px; font-size:16px; }
+  .row { display:flex; gap:8px; } .row > * { flex:1; }
+  .btn { background:var(--c); color:var(--bg); border:none; border-radius:12px; padding:12px; font-size:16px; font-weight:600; width:100%; margin-top:14px; }
+  .btn.alt { background:#1d2638; color:var(--text); font-weight:500; }
+  .small { background:#1d2638; color:var(--text); border:none; border-radius:10px; padding:10px; font-size:14px; flex:0 0 auto; }
+  .check { display:flex; align-items:center; gap:10px; margin-top:12px; font-size:15px; }
+  .check input { width:auto; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="tabs" id="tabs"></div>
+    <button class="gear" id="gear" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4L10.7 6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/></svg>
+    </button>
+  </div>
+  <div class="stage"><canvas id="ring" width="600" height="600"></canvas></div>
+  <div class="status" id="status">Tap the mic and talk</div>
+  <div class="log" id="log"></div>
+  <form class="bar" id="form">
+    <input id="text" placeholder="Type a message…" autocomplete="off" enterkeyhint="send">
+    <button class="mic" id="mic" type="button" aria-label="Talk">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+    </button>
+  </form>
+</div>
+
+<div class="sheet" id="sheet"><div class="panel">
+  <h3>Settings</h3>
+  <p>Everything here is saved only on this phone.</p>
+  <label>Claude API key</label>
+  <div class="row"><input id="s-key" type="password" placeholder="sk-ant-…" autocomplete="off"></div>
+  <p>Tip: make a separate key just for this phone in the Claude Console, and set a monthly spend limit.</p>
+  <label>Your city (for the weather)</label>
+  <input id="s-city" placeholder="Sydney">
+  <label>Joey's voice</label>
+  <div class="row"><select id="s-vjoey"></select><button class="small" type="button" id="t-joey">▶︎ Test</button></div>
+  <label>Ryan's voice</label>
+  <div class="row"><select id="s-vryan"></select><button class="small" type="button" id="t-ryan">▶︎ Test</button></div>
+  <p>More natural voices: iPhone Settings → Accessibility → Spoken Content → Voices → English → download an “Enhanced” or “Premium” voice, then pick it here.</p>
+  <label>Speed</label>
+  <input id="s-rate" type="range" min="0.8" max="1.3" step="0.05">
+  <label>Brain</label>
+  <select id="s-model">
+    <option value="claude-haiku-5-5">Fast &amp; cheap (Claude Haiku)</option>
+    <option value="claude-sonnet-5-5">Smarter (Claude Sonnet)</option>
+  </select>
+  <div class="check"><input type="checkbox" id="s-web"> <span>Look things up on the web (about 1 cent per search)</span></div>
+  <button class="btn" id="s-save" type="button">Save</button>
+  <div class="row">
+    <button class="btn alt" id="s-memory" type="button">What they remember</button>
+    <button class="btn alt" id="s-forget" type="button">Forget everything</button>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+// ================= settings & memory (stored only on this phone) =================
+const CHARACTERS = {
+  joey: { name:"Joey", color:"#46b9ff", accent:"#ffc43c",
+    personality:"a calm, warm, witty and highly capable personal assistant",
+    greetings:["Hi, Joey here. How can I help?","Joey here. What can I do for you?","Hey, it's Joey. What do you need?"],
+    wake:["joey","joy","joe","joie","zoey","jody"], gender:"female" },
+  ryan: { name:"Ryan", color:"#ff9623", accent:"#5ad2ff",
+    personality:"a confident, quick-witted and slightly cheeky personal assistant with dry humour, who gets straight to the point",
+    greetings:["Ryan here. What do you need?","Hey, it's Ryan. What's up?","Ryan on the line. Go ahead."],
+    wake:["ryan","rian","ryann","rion"], gender:"male" },
+};
+const KEYS = Object.keys(CHARACTERS);
+const store = {
+  get(k, d){ try { const v = localStorage.getItem("joey." + k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem("joey." + k, JSON.stringify(v)); } catch(e){} },
+};
+let settings = Object.assign({ key:"", city:"Sydney", model:"claude-haiku-5-5", web:true, rate:1.0,
+                               voice_joey:"", voice_ryan:"" }, store.get("settings", {}));
+let facts = store.get("facts", []);                       // what they know about you (shared)
+let history = { joey: store.get("history.joey", []), ryan: store.get("history.ryan", []) };
+let who = store.get("who", "joey");
+
+// ================= small helpers =================
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let mode = "idle", speaker = null, level = 0, cancelled = false;
+function status(t){ $("#status").textContent = t; }
+function setActive(k){ who = k; store.set("who", k); document.documentElement.style.setProperty("--c", CHARACTERS[k].color); drawTabs(); }
+function drawTabs(){
+  $("#tabs").innerHTML = KEYS.map(k => `<button class="tab ${k===who?'on':''}" data-k="${k}">${CHARACTERS[k].name}</button>`).join("");
+  document.querySelectorAll(".tab").forEach(b => b.onclick = () => { if (b.dataset.k !== who) handle(`switch to ${CHARACTERS[b.dataset.k].name}`); });
+}
+function addMsg(cls, html, k){
+  const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html;
+  if (k) d.style.setProperty("--mc", CHARACTERS[k].color);
+  $("#log").appendChild(d); $("#log").scrollTop = 1e9; return d;
+}
+function botMsg(k, text, sources){
+  const src = (sources||[]).slice(0,4).map(([t,u]) => {
+    let host = u; try { host = new URL(u).hostname.replace("www.",""); } catch(e){}
+    return `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(host)}</a>`; }).join("");
+  addMsg("bot", `<b>${esc(CHARACTERS[k].name)}</b> ${esc(text)}` + (src ? `<div class="src">Sources: ${src}</div>` : ""), k);
+}
+
+// ================= voices (the phone's own speech) =================
+let voices = [];
+function loadVoices(){
+  voices = (speechSynthesis.getVoices() || []).filter(v => /^en/i.test(v.lang));
+  const femaleHint = /(karen|samantha|catherine|zoe|ava|allison|susan|serena|kate|moira|tessa|fiona|victoria|female|natasha|jenny|aria|sonia)/i;
+  const maleHint = /(gordon|daniel|lee|aaron|arthur|oliver|fred|alex|tom|evan|nathan|rishi|male|ryan|guy)/i;
+  const pick = (hint, avoid) => {
+    const good = voices.filter(v => hint.test(v.name) && !avoid.test(v.name));
+    const rank = v => (/premium|enhanced/i.test(v.name) ? 0 : 2) + (/en-AU/i.test(v.lang) ? 0 : 1);
+    return (good.sort((a,b) => rank(a) - rank(b))[0] || voices[0] || {}).name || "";
+  };
+  if (!settings.voice_joey) settings.voice_joey = pick(femaleHint, /(daniel|gordon|aaron|fred)/i);
+  if (!settings.voice_ryan) settings.voice_ryan = pick(maleHint, /(samantha|karen|ava)/i);
+  for (const k of KEYS){
+    const sel = $("#s-v" + k); sel.innerHTML = voices.map(v => `<option>${esc(v.name)}</option>`).join("") || "<option>(default voice)</option>";
+    sel.value = settings["voice_" + k];
+  }
+}
+if ("speechSynthesis" in window){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+let unlocked = false;
+function unlockSpeech(){            // iPhone only lets a page talk after a tap
+  if (unlocked || !("speechSynthesis" in window)) return;
+  unlocked = true; const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u);
+}
+function speak(text, k){
+  return new Promise(resolve => {
+    if (!("speechSynthesis" in window) || cancelled){ resolve(); return; }
+    // speak sentence by sentence (iPhone cuts off long speech)
+    const parts = String(text).match(/[^.!?]+[.!?]*\s*/g) || [text];
+    const voice = voices.find(v => v.name === settings["voice_" + k]);
+    let i = 0; speaker = k; mode = "speaking"; status(`${CHARACTERS[k].name} speaking…`);
+    const next = () => {
+      if (cancelled || i >= parts.length){ resolve(); return; }
+      const u = new SpeechSynthesisUtterance(parts[i++].trim());
+      if (voice) u.voice = voice; u.lang = voice ? voice.lang : "en-AU"; u.rate = settings.rate || 1;
+      u.pitch = k === "ryan" && !voice ? 0.85 : 1;
+      let done = false;
+      const go = () => { if (!done){ done = true; clearTimeout(guard); next(); } };
+      // safety net: if the phone never reports the end of a sentence, move on anyway
+      const guard = setTimeout(go, 2500 + u.text.length * 110 / (settings.rate || 1));
+      u.onend = go; u.onerror = go; speechSynthesis.speak(u);
+    };
+    next();
+  });
+}
+function stopTalking(){ cancelled = true; try { speechSynthesis.cancel(); } catch(e){} mode = "idle"; status("Tap the mic and talk"); }
+
+// ================= tools Joey & Ryan can use =================
+async function getWeather(city){
+  city = city || settings.city || "Sydney";
+  const geo = await (await fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&name=" + encodeURIComponent(city))).json();
+  if (!geo.results || !geo.results.length) return `Couldn't find a place called ${city}.`;
+  const p = geo.results[0];
+  const w = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.latitude}&longitude=${p.longitude}` +
+    "&current=temperature_2m,apparent_temperature,wind_speed_10m,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1")).json();
+  const c = w.current, d = w.daily;
+  return `${p.name}, ${p.country||""}: currently ${c.temperature_2m}°C (feels like ${c.apparent_temperature}°C), wind ${c.wind_speed_10m} km/h. ` +
+         `Today: high ${d.temperature_2m_max[0]}°C, low ${d.temperature_2m_min[0]}°C, ${d.precipitation_probability_max[0]}% chance of rain.`;
+}
+const TOOLS = {
+  get_time: { description:"Get the current local date and time.", input_schema:{type:"object",properties:{}},
+    run: () => new Date().toLocaleString("en-AU", {weekday:"long", day:"numeric", month:"long", year:"numeric", hour:"numeric", minute:"2-digit"}) },
+  get_weather: { description:"Get the current weather and today's forecast for a city.",
+    input_schema:{type:"object",properties:{city:{type:"string",description:"City name, e.g. Sydney"}},required:["city"]},
+    run: a => getWeather(a.city) },
+  remember: { description:"Save an important fact about the user to long-term memory (name, family, likes, plans...). Write it as a short sentence like \"User's name is Mahin\".",
+    input_schema:{type:"object",properties:{fact:{type:"string"}},required:["fact"]},
+    run: a => { if (!facts.some(f => f.toLowerCase() === a.fact.toLowerCase())){ facts.push(a.fact); store.set("facts", facts); } return "Saved to memory."; } },
+  forget: { description:"Remove facts from memory that contain a word or phrase, e.g. \"birthday\".",
+    input_schema:{type:"object",properties:{about:{type:"string"}},required:["about"]},
+    run: a => { const n = facts.length; facts = facts.filter(f => !f.toLowerCase().includes(a.about.toLowerCase())); store.set("facts", facts); return `Forgot ${n - facts.length} fact(s).`; } },
+  list_memories: { description:"List everything remembered about the user.", input_schema:{type:"object",properties:{}},
+    run: () => facts.length ? facts.map(f => "- " + f).join("\n") : "Memory is empty." },
+};
+function toolList(){
+  const list = Object.entries(TOOLS).map(([name, t]) => ({name, description:t.description, input_schema:t.input_schema}));
+  if (settings.web) list.push({type:"web_search_20250305", name:"web_search", max_uses:3,
+    user_location:{type:"approximate", city:settings.city || "Sydney", country:"AU", timezone:"Australia/Sydney"}});
+  return list;
+}
+function systemPrompt(k){
+  const me = CHARACTERS[k], other = CHARACTERS[KEYS.find(x => x !== k)];
+  return `You are ${me.name}, ${me.personality}. You share this phone app with another assistant, ${other.name}; ` +
+    `you both work for the same user and share what you know about them. Stay in your own character.
+Keep replies short and natural (1-3 sentences) unless the user asks for detail, because your replies are spoken out loud. ` +
+    `Don't use markdown, bullet points or emoji. Use your tools whenever they help. Never make up the time or weather.
+The user lives in ${settings.city || "Sydney"}. If they ask about the weather without saying where, use that.
+For anything current or factual you aren't sure about (scores, news, opening hours, prices, people, events), use web_search ` +
+    `if you have it, then answer in 1-3 spoken sentences. Never read out web addresses.
+When the user tells you something worth remembering about themselves, save it with remember.
+Things you know about the user:
+${facts.length ? facts.map(f => "- " + f).join("\n") : "- (nothing yet)"}
+Right now it is ${TOOLS.get_time.run()}.`;
+}
+
+// ================= talking to Claude =================
+async function callClaude(body){
+  const models = [settings.model, settings.model === "claude-sonnet-5-5" ? "claude-haiku-5-5" : "claude-sonnet-5-5"];
+  let last;
+  for (const model of models){
+    for (let attempt = 0; attempt < 2; attempt++){
+      const r = await fetch("https://api.anthropic.com/v1/messages", { method:"POST",
+        headers:{ "content-type":"application/json", "x-api-key":settings.key, "anthropic-version":"2023-06-01",
+                  "anthropic-dangerous-direct-browser-access":"true" },
+        body: JSON.stringify(Object.assign({model}, body)) });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) return data;
+      const msg = (data.error && data.error.message) || r.statusText;
+      if (r.status === 401) throw new Error("Your API key isn't working. Check it in Settings (⚙︎).");
+      if (r.status === 400 && /credit/i.test(msg)) throw new Error("Your Claude account is out of credit. Top it up in the Claude Console.");
+      if (r.status === 400 && /web.?search/i.test(msg) && body.tools){
+        body.tools = body.tools.filter(t => t.name !== "web_search"); continue;   // web search not available: carry on without it
+      }
+      last = msg;
+      if ([429, 500, 503, 529].includes(r.status)){ await sleep(1200 * (attempt + 1)); continue; }
+      if (r.status === 404) break;
+      throw new Error(msg);
+    }
+  }
+  throw new Error("Claude is very busy right now. Try again in a minute. (" + last + ")");
+}
+function finalAnswer(content){
+  let lastTool = -1;
+  content.forEach((b, i) => { if (["server_tool_use","web_search_tool_result","tool_use"].includes(b.type)) lastTool = i; });
+  const text = [], sources = [];
+  for (const b of content.slice(lastTool + 1)){
+    if (b.type !== "text") continue;
+    text.push(b.text);
+    for (const c of b.citations || []) if (c.url && !sources.some(s => s[1] === c.url)) sources.push([c.title || c.url, c.url]);
+  }
+  return { text: text.join("").trim(), sources };
+}
+async function ask(k, userText){
+  const messages = history[k].concat([{role:"user", content:userText}]);
+  for (let step = 0; step < 10; step++){
+    const res = await callClaude({ max_tokens:1024, system:systemPrompt(k), tools:toolList(), messages });
+    if (res.content.some(b => b.type === "server_tool_use")) status("Searching the web…");
+    if (res.stop_reason === "pause_turn"){ messages.push({role:"assistant", content:res.content}); continue; }
+    if (res.stop_reason !== "tool_use"){
+      const ans = finalAnswer(res.content);
+      history[k] = history[k].concat([{role:"user", content:userText}, {role:"assistant", content:ans.text || "(no reply)"}]).slice(-30);
+      while (history[k].length && history[k][0].role !== "user") history[k].shift();
+      store.set("history." + k, history[k]);
+      return ans;
+    }
+    messages.push({role:"assistant", content:res.content});
+    const results = [];
+    for (const b of res.content){
+      if (b.type !== "tool_use") continue;
+      let out; try { out = String(await TOOLS[b.name].run(b.input || {})); } catch(e){ out = "Tool error: " + e.message; }
+      results.push({type:"tool_result", tool_use_id:b.id, content:out});
+    }
+    messages.push({role:"user", content:results});
+  }
+  return { text:"Sorry, that took too many steps. Can you ask in a simpler way?", sources:[] };
+}
+
+// ================= understanding requests (same rules as on the PC) =================
+const wakeRe = k => new RegExp("\\b(" + CHARACTERS[k].wake.join("|") + ")\\b[\\s,.!?]*", "i");
+function detectWake(text){
+  let best = null;
+  for (const k of KEYS){ const m = wakeRe(k).exec(text); if (m && (!best || m.index < best.m.index)) best = {k, m}; }
+  return best ? [best.k, text.slice(best.m.index + best.m[0].length).trim()] : null;
+}
+function handoff(text){
+  if (text.split(/\s+/).length > 14) return null;
+  for (const k of KEYS){
+    const re = new RegExp("\\b(switch|swap|change|hand|pass|put|transfer|talk|speak|bring|connect|give me|get me)\\b(?:\\W+\\w+){0,4}?\\W+(" +
+                          CHARACTERS[k].wake.join("|") + ")\\b[\\s,.!?]*(?:on\\b|please\\b|now\\b)?[\\s,.!?]*", "i");
+    const m = re.exec(text);
+    if (m){
+      let rest = text.slice(m.index + m[0].length).trim().replace(/^(and|then|to)\b[\s,]*/i, "");
+      if (/^(again|please|now|instead|back|for a (bit|sec|second)|thanks|thank you)[.!?]*$/i.test(rest)) rest = "";
+      return [k, rest];
+    }
+  }
+  return null;
+}
+const TOGETHER = /\b(each other|one another|together|you two|both of you|you both|between (yourselves|you)|with (joey|joy|ryan|rian)|(joey|joy) and (ryan|rian)|(ryan|rian) and (joey|joy)|you guys)\b/i;
+function duetRequest(text){
+  const verb = /\b(debate|argue|discuss|brainstorm|talk|chat|have a (chat|conversation|debate)|come up with)\b/i.exec(text);
+  if (!verb || !TOGETHER.test(text)) return null;
+  const mode = /\b(debate|argue)\b/i.test(text) ? "debate" : /\b(brainstorm|ideas|come up with)\b/i.test(text) ? "brainstorm" : "chat";
+  let topic = text.slice(verb.index + verb[0].length).replace(new RegExp(TOGETHER.source, "gi"), " ");
+  const lead = /^\W*(with|and|to|about|on|over|regarding|for a bit|for a while)\b\s*/i;
+  while (lead.test(topic)) topic = topic.replace(lead, "");
+  topic = topic.replace(/\s+/g, " ").replace(/^[\s,.!?]+|[\s,.!?]+$/g, "");
+  return [topic || "anything you like", mode];
+}
+
+// ================= Joey & Ryan talking to each other =================
+async function duetLine(k, other, topic, dmode, starter, transcript, last){
+  const me = CHARACTERS[k].name, them = CHARACTERS[other].name;
+  const rules = dmode === "debate"
+    ? `This is a friendly debate. You argue ${k === starter ? "FOR it (agree)" : "AGAINST it (disagree)"}. Make one sharp point per line and push back on what ${them} just said. Keep it playful.`
+    : dmode === "brainstorm" ? `You're brainstorming together. Each line adds one concrete new idea, building on what ${them} said.`
+    : `Have a natural, fun conversation. React to what ${them} just said and add something of your own.`;
+  const soFar = transcript.map(([w,t]) => `${CHARACTERS[w].name}: ${t}`).join("\n") || "(nobody has spoken yet; you start)";
+  const res = await callClaude({ max_tokens:160, system:systemPrompt(k), messages:[{role:"user", content:
+    `You and ${them} are talking out loud in front of the user. Topic: "${topic}".\n${rules}\n\nConversation so far:\n${soFar}\n\n` +
+    `Now give your next line as ${me}: 1-2 short spoken sentences, in your own personality. No stage directions, no quotation marks, ` +
+    `don't start with your name.${last ? " This is the final line: wrap it up in one sentence and ask the user what they think." : ""}`}] });
+  return res.content.filter(b => b.type === "text").map(b => b.text).join("").replace(new RegExp("^\\s*" + me + "\\s*:\\s*"), "").replace(/^"|"$/g, "").trim();
+}
+async function duet(topic, dmode, starter){
+  const other = KEYS.find(k => k !== starter), order = [starter, other], transcript = [], TURNS = 6;
+  let next = duetLine(starter, other, topic, dmode, starter, [], false);
+  for (let i = 0; i < TURNS && !cancelled; i++){
+    const k = order[i % 2], line = await next;
+    if (cancelled) break;
+    transcript.push([k, line]);
+    if (i + 1 < TURNS) next = duetLine(order[(i+1)%2], k, topic, dmode, starter, transcript.slice(), i + 1 === TURNS - 1);
+    setActive(k); botMsg(k, line); await speak(line, k);
+  }
+  const text = transcript.map(([w,t]) => `${CHARACTERS[w].name}: ${t}`).join("\n").slice(0, 1500);
+  for (const k of KEYS){
+    history[k] = history[k].concat([{role:"user", content:`(Please ${dmode} together about: ${topic})`}, {role:"assistant", content:text}]).slice(-30);
+    store.set("history." + k, history[k]);
+  }
+}
+
+// ================= handling what you say =================
+let busy = false;
+async function handle(text){
+  text = text.trim(); if (!text) return;
+  if (busy && /^(stop|enough|quiet|shut up)/i.test(text)){ stopTalking(); return; }
+  if (!settings.key){ openSettings(); return; }
+  unlockSpeech();
+  if (busy){ stopTalking(); while (busy) await sleep(50); }   // finish off whatever was happening first
+  stopTalking(); cancelled = false; busy = true;
+  addMsg("me", esc(text)); mode = "thinking"; status("Thinking…");
+  try {
+    const together = duetRequest(text);
+    const found = detectWake(text);
+    let k = (found && found[1]) ? found[0] : who, command = (found && found[1]) ? found[1] : text;
+    if (together){ await duet(together[0], together[1], k); return; }
+    const swap = handoff(text);
+    if (swap){
+      const [target, rest] = swap;
+      if (target === who && !rest){ botMsg(who, "I'm right here."); await speak("I'm right here.", who); return; }
+      if (target !== who){
+        const bye = [`Sure, here's ${CHARACTERS[target].name}.`, `Okay, passing you to ${CHARACTERS[target].name}.`][Math.floor(Math.random()*2)];
+        botMsg(who, bye); await speak(bye, who);
+        setActive(target);
+        if (!rest){ const hi = CHARACTERS[target].greetings[Math.floor(Math.random()*3)]; botMsg(target, hi); await speak(hi, target); return; }
+      }
+      k = target; command = rest;
+    }
+    setActive(k); mode = "thinking"; status("Thinking…");
+    const ans = await ask(k, command);
+    if (cancelled) return;
+    botMsg(k, ans.text, ans.sources); await speak(ans.text, k);
+  } catch(e){
+    addMsg("err", esc(e.message || String(e)));
+  } finally {
+    busy = false; mode = "idle"; status("Tap the mic and talk");
+  }
+}
+$("#form").onsubmit = e => { e.preventDefault(); const t = $("#text"); const v = t.value; t.value = ""; t.blur(); handle(v); };
+
+// ================= the microphone (the phone recognises your speech) =================
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+$("#mic").onclick = () => {
+  unlockSpeech();
+  if (mode === "speaking" || busy && mode !== "listening"){ stopTalking(); return; }
+  if (!SR){ $("#text").focus(); status("Use the 🎤 on your keyboard"); return; }
+  if (rec){ rec.stop(); return; }
+  rec = new SR(); rec.lang = "en-AU"; rec.interimResults = true; rec.continuous = false;
+  let finalText = "";
+  rec.onstart = () => { $("#mic").classList.add("live"); mode = "listening"; status("Listening…"); };
+  rec.onresult = e => { let interim = ""; finalText = "";
+    for (const r of e.results){ if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript; }
+    status(finalText || interim || "Listening…"); };
+  rec.onerror = e => status(e.error === "not-allowed" ? "Allow the microphone for this app" : "Didn't catch that");
+  rec.onend = () => { $("#mic").classList.remove("live"); rec = null;
+    if (finalText.trim()) handle(finalText); else if (mode === "listening"){ mode = "idle"; status("Tap the mic and talk"); } };
+  rec.start();
+};
+
+// ================= settings sheet =================
+function openSettings(){
+  $("#s-key").value = settings.key; $("#s-city").value = settings.city; $("#s-model").value = settings.model;
+  $("#s-web").checked = settings.web; $("#s-rate").value = settings.rate; loadVoices();
+  $("#sheet").classList.add("open");
+}
+$("#gear").onclick = openSettings;
+$("#sheet").onclick = e => { if (e.target.id === "sheet" && settings.key) $("#sheet").classList.remove("open"); };
+function readSettings(){
+  settings.key = $("#s-key").value.trim(); settings.city = $("#s-city").value.trim() || "Sydney";
+  settings.model = $("#s-model").value; settings.web = $("#s-web").checked; settings.rate = parseFloat($("#s-rate").value) || 1;
+  settings.voice_joey = $("#s-vjoey").value; settings.voice_ryan = $("#s-vryan").value;
+}
+$("#s-save").onclick = () => {
+  readSettings();
+  if (!/^sk-ant-/.test(settings.key)){ alert("Paste your Claude API key (it starts with sk-ant-)."); return; }
+  store.set("settings", settings); $("#sheet").classList.remove("open");
+  status("Saved. Tap the mic and talk");
+};
+for (const k of KEYS) $("#t-" + k).onclick = () => { unlockSpeech(); readSettings(); cancelled = false; speak(CHARACTERS[k].greetings[0], k); };
+$("#s-memory").onclick = () => alert(facts.length ? "They remember:\n\n" + facts.map(f => "• " + f).join("\n") : "They don't remember anything yet.");
+$("#s-forget").onclick = () => { if (confirm("Erase everything Joey and Ryan remember, and your chat history?")){
+  facts = []; history = {joey:[], ryan:[]}; store.set("facts", []); store.set("history.joey", []); store.set("history.ryan", []);
+  $("#log").innerHTML = ""; alert("Done."); } };
+
+// ================= the HUD ring =================
+const cv = $("#ring"), g = cv.getContext("2d"), N = 380, pts = [];
+for (let i = 0; i < N; i++){ const y = 1 - 2*(i+.5)/N, r = Math.sqrt(1-y*y), a = i*2.39996; pts.push([Math.cos(a)*r, y, Math.sin(a)*r]); }
+let rot = 0, lastT = performance.now();
+const hexA = (h,a) => { const n = parseInt(h.slice(1),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; };
+function frame(t){
+  const dt = Math.min(.05, (t - lastT)/1000); lastT = t;
+  const talking = mode === "speaking" && "speechSynthesis" in window && speechSynthesis.speaking;
+  const target = talking ? .45 + .4*Math.abs(Math.sin(t/90)*Math.sin(t/170)) : 0;
+  level += (target - level) * .3;
+  rot += dt * ({idle:.3, listening:.9, thinking:2.4, speaking:.9}[mode] || .3);
+  const k = mode === "speaking" && speaker ? speaker : who, c = CHARACTERS[k].color, acc = CHARACTERS[k].accent;
+  const W = 600, cx = 300, cy = 300; g.clearRect(0,0,W,W); g.lineCap = "round";
+  g.shadowColor = c; g.shadowBlur = 16; g.strokeStyle = c; g.lineWidth = 7;
+  for (let i = 0; i < 4; i++){ const a0 = rot*.35 + i*Math.PI/2 + .1; g.beginPath(); g.arc(cx,cy,238,a0,a0+1.15); g.stroke(); }
+  g.lineWidth = 2; g.globalAlpha = .55;
+  for (let i = 0; i < 72; i++){ const a = -rot*.6 + i*Math.PI/36, r0 = i%6 ? 205 : 198; g.beginPath();
+    g.moveTo(cx+Math.cos(a)*r0, cy+Math.sin(a)*r0); g.lineTo(cx+Math.cos(a)*214, cy+Math.sin(a)*214); g.stroke(); }
+  g.globalAlpha = 1;
+  const fill = .28 + .6*(mode === "speaking" ? level : mode === "listening" ? .5 : mode === "thinking" ? .4 : .2);
+  for (let i = 0; i < Math.floor(28*fill)+4; i++){ const a0 = 3.5 + rot*.12 + i*.17; g.beginPath();
+    g.arc(cx,cy,172,a0,a0+.14); g.lineWidth = 30; g.strokeStyle = hexA(c,.32); g.stroke(); }
+  g.shadowColor = acc; g.shadowBlur = 10; g.strokeStyle = acc; g.lineWidth = 4; const ya = -rot*.9;
+  g.beginPath(); g.arc(cx,cy,147,ya+2.6,ya+3.7); g.stroke();
+  g.shadowColor = "#dff3ff"; g.shadowBlur = 20 + 28*level; g.strokeStyle = "#e9f6ff"; g.lineWidth = 5 + 5*level;
+  g.beginPath(); g.arc(cx,cy,130,0,7); g.stroke(); g.shadowBlur = 0;
+  const R = 106*(1 + .07*level), ca = Math.cos(rot*.5), sa = Math.sin(rot*.5);
+  for (const [x,y,z] of pts){ const X = x*ca + z*sa, Z = -x*sa + z*ca, d = (Z+1)/2;
+    g.fillStyle = `rgba(215,230,245,${(.15+.75*d*d)*(.7+.6*level)})`; g.fillRect(cx+X*R, cy+y*R, 2.2, 2.2); }
+  requestAnimationFrame(frame);
+}
+
+// ================= start =================
+setActive(who);
+requestAnimationFrame(frame);
+if (!settings.key){
+  addMsg("bot", "<b>Joey</b> Hi! First, paste your Claude API key in Settings so I can think. It stays on this phone only.", "joey");
+  openSettings();
+} else {
+  addMsg("bot", `<b>${esc(CHARACTERS[who].name)}</b> Hi! Tap the mic and talk, or type below.`, who);
+}
+</script>
+</body>
+</html>
