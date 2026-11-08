@@ -1,96 +1,91 @@
-# Joey & Ryan — a personal AI assistant
+# Joey & Ryan — desktop app (Windows, Python)
 
-A JARVIS-style voice assistant with two characters: **Joey** (calm, warm) and **Ryan** (confident, dry humour).
-Say "Hey Joey" or "Hey Ryan", ask anything, and they answer out loud. They can hand over to each other,
-or even debate a topic between themselves.
+The full version of the assistant: always listening for "Hey Joey" / "Hey Ryan", natural offline voices,
+an animated HUD window, and tools that control the PC.
 
-It runs in two places:
+## Setup
 
-| | **Desktop app** (Windows, Python) | **Phone app** |
-|---|---|---|
-| How it runs | Always-on app on the PC, starts with Windows | Web app added to the iPhone home screen |
-| Wake word | "Hey Joey" / "Hey Ryan" | Tap the mic |
-| Voice | Natural offline voices (Piper) | The phone's built-in voices |
-| Works away from home | — | ✅ anywhere with internet |
+1. Python 3.11 or newer on Windows.
+2. Install the packages:
+   ```
+   pip install -r requirements.txt
+   ```
+3. Set your Claude API key (then open a new terminal):
+   ```
+   setx ANTHROPIC_API_KEY "sk-ant-..."
+   ```
+   Check it works with `python check_key.py`.
+4. Test your microphone with `python mic_test.py`.
+5. Start the app:
+   ```
+   python joey_app.py
+   ```
+   The first start downloads the two Piper voices.
 
-## 📱 How to use it (5 minutes)
+Optional extras:
 
-1. **Get a Claude API key** — sign up at [console.anthropic.com](https://console.anthropic.com), add a little credit under **Billing** (you pay only for what you use) and set a monthly limit. Then **API keys → Create key** and copy it (starts with `sk-ant-`).
-2. **Open the app** — **https://mahin1098-if.github.io/AI-Assistant/** (iPhone: Safari · Android / computer: Chrome).
-3. **Paste your key** — tap **⚙**, paste it, tap **Save**. It's stored only on your device.
-4. **Add it to your home screen** — iPhone: **Share → Add to Home Screen**. Android: **⋮ → Add to Home screen**.
-5. **Tap the mic and talk** — try *"What's the weather?"*, *"Switch to Ryan"* or *"Joey and Ryan, debate pineapple on pizza"*.
-
-Stuck? Tap **?** at the top of the app for the same guide.
-
-<p>
-  <img src="phone-app.png" alt="Phone app" width="260">
-  &nbsp;
-  <img src="pc-app.png" alt="Desktop app states" width="560">
-</p>
-
-▶ [Watch the desktop app talking](joey_hud_demo.mp4)
-
-## Features
-
-- **Two characters, one assistant** — each with its own personality, voice, colour and conversation memory. "Switch to Ryan" hands the conversation over.
-- **Joey & Ryan talk to each other** — "debate pineapple on pizza" or "brainstorm a birthday gift" starts a back-and-forth between the two.
-- **Live web answers** — current events, prices and facts are searched on the web, with clickable sources.
-- **Long-term memory** — "remember my sister's birthday is 3 May"; they remember across sessions until told to forget.
-- **Morning briefing** *(desktop)* — weather, today's calendar and top headlines, split between both characters.
-- **PC control** *(desktop)* — open apps, play music, set timers, take notes, draft WhatsApp messages and emails, read your Google Calendar.
-- **Screen help** *(desktop)* — "what's this error on my screen?" takes a screenshot and explains it.
-- **HUD interface** — an animated ring that pulses in time with the voice.
-- **Remote access** *(desktop)* — talk to the PC version from your phone over home Wi-Fi (self-signed HTTPS) or a private Telegram bot.
-
-## How it works
-
-```
- Mic ──► Speech-to-text ──► Wake word / router ──► Claude (tool use loop) ──► Text-to-speech ──► Speaker
-                              │  Joey or Ryan?          │
-                              │  handoff? debate?       ├─ web search (server tool)
-                              │  briefing?              ├─ weather, time
-                                                        ├─ memory (remember / forget)
-                                                        └─ desktop only: apps, music, timers,
-                                                           calendar, news, messages, screenshot
-```
-
-- **Brain:** Anthropic Claude API with tool use. Each character has its own system prompt and history. A manual tool loop runs the tools Claude asks for and sends the results back; Claude's server-side web search adds cited sources.
-- **Speed tricks:** the next line of a Joey–Ryan debate is generated while the current one is being spoken; the morning briefing gathers weather, calendar and news in parallel.
-- **Phone app:** a single-file web app (HTML/CSS/JavaScript, no framework, no server). It calls the Claude API directly from the browser, uses the browser's speech recognition and speech synthesis, and stores settings and memory in `localStorage`. Hosted free on GitHub Pages.
-- **Desktop voice:** microphone capture with automatic background-noise calibration, Google speech recognition, and Piper neural text-to-speech, with the HUD synced to the audio.
-
-## What's in this repository
-
-| Folder / file | What it is |
+| Run | To |
 |---|---|
-| `index.html`, `manifest.webmanifest`, `icon-*.png` | The phone app (served by GitHub Pages) |
-| `desktop/` | The Windows desktop app in Python - see [desktop/README.md](desktop/README.md) |
+| `python setup_calendar.py` | Connect a Google/Outlook calendar (private ICS link) |
+| `python setup_autostart.py` | Start Joey when Windows starts |
+| `python setup_phone.py` | Use it from your phone on home Wi-Fi |
+| `python setup_telegram.py` | Talk to it from anywhere through a private Telegram bot |
 
-## Tech stack
+## Use the PC version from your phone
 
-**Desktop:** Python · Anthropic SDK · Piper TTS · SpeechRecognition · sounddevice · Tkinter + Pillow · icalendar · `cryptography` (home HTTPS certificates) · Telegram Bot API
-**Phone:** HTML · CSS · JavaScript · Web Speech API · Canvas · PWA manifest · GitHub Pages
+The phone app on GitHub Pages is separate from this one. To reach **this** version from your phone,
+with its memories, calendar, timers and PC control, use one of these. Joey must be running on the PC.
 
-## Security & privacy decisions
+### Option A: Home Wi-Fi phone page (voice, only at home)
 
-- The API key is never in the code. On the PC it's an environment variable; on the phone it's typed in once and kept only on that device.
-- The phone-to-PC link is locked with a private key and only accepts devices on the home network; the Telegram bot only answers its owner.
-- Home HTTPS uses a self-made certificate authority whose private key never leaves the PC.
-- A separate API key with a monthly spending limit is used for the phone, so a lost phone costs nothing more than deleting one key.
+1. On the PC run `python setup_phone.py`. It shows a private link and a QR code. Keep the link private,
+   because it contains your key.
+2. Allow the phone-app ports through Windows Firewall, once. Open **PowerShell as administrator**
+   (right-click → Run as administrator) and run:
+   ```
+   New-NetFirewallRule -DisplayName "Joey phone app" -Direction Inbound -Protocol TCP -LocalPort 8765,8766 -Action Allow -RemoteAddress LocalSubnet
+   ```
+   This only lets devices on your home network in.
+3. Restart Joey on the PC. It should print `[phone app ready at http://...]`.
+4. Make sure your phone is on the **same Wi-Fi** as the PC, then scan the QR code.
+5. To use the microphone, the phone has to trust Joey's home certificate. The page that opens walks you through it:
+   - Tap **Download certificate** → **Allow**.
+   - iPhone: **Settings → Profile Downloaded → Install**.
+   - Then **Settings → General → About → Certificate Trust Settings** → switch on **Joey Home Certificate**.
+6. Go back to the page, tap **Open Joey with voice**, and then **Share → Add to Home Screen**.
 
-## What I learned
+If it stops working one day, your PC's home address has probably changed. Run `python setup_phone.py` again.
 
-- Designing tool-using AI agents: tool schemas, the tool-call loop, handling paused turns and errors.
-- Making voice feel natural: noise calibration, interrupting speech, splitting long replies into sentences, and keeping animation in sync with audio.
-- Why phones only allow the microphone on secure (HTTPS) pages, and how certificates and certificate authorities work.
-- Debugging real-world problems: audio device channel errors, API rate limits, a text-to-speech service shutting down mid-project, firewall rules, and browser security policies.
-- Keeping secrets out of code and public repositories.
+### Option B: Telegram (text, from anywhere)
 
-## Running it yourself
+1. In Telegram, open **@BotFather** (blue tick), send `/newbot`, and pick a name and a username ending in `bot`.
+2. BotFather replies with a **token**. Copy it and keep it private, because anyone with it controls the bot.
+3. On the PC run `python setup_telegram.py` and paste the token.
+4. In Telegram, open your new bot and press **Start**. The bot locks itself to your account, so nobody else can use it.
+5. Restart Joey on the PC. Message the bot from anywhere and Joey or Ryan reply, as long as the PC is on.
 
-**Phone:** open the link above in Safari → ⚙ → paste a Claude API key → Share → Add to Home Screen.
-**Desktop:** see [desktop/README.md](desktop/README.md).
+## How the code is organised
 
----
-Built by Mahin, with help from Claude as a coding assistant.
+| File | Job |
+|---|---|
+| `joey_app.py` | The window and main loop: listens, routes, speaks, animates |
+| `joey.py` | The brain: characters, system prompts, Claude tool-use loop, web search, citations |
+| `joey_voice.py` | Microphone capture, noise calibration, speech recognition, Piper text-to-speech |
+| `joey_wake.py` | Wake words, "switch to Ryan" handoffs, and the terminal version |
+| `joey_memory.py` | Long-term facts and per-character conversation history |
+| `joey_powers.py` | PC tools: open apps, music, media keys, timers, notes, web search |
+| `joey_skills.py` | News, calendar, contacts, WhatsApp and email drafts |
+| `joey_screen.py` | Screenshot tool so Claude can see the screen |
+| `joey_duet.py` | Joey and Ryan debating / brainstorming with each other |
+| `joey_briefing.py` | The morning briefing |
+| `joey_hud.py` | The HUD ring animation (current look) |
+| `joey_holo.py`, `joey_face.py`, `joey_lipsync.py`, `face_mesh.obj` | Earlier face/hologram looks, still selectable in `joey_app.py` |
+| `joey_remote.py` | Routes messages that arrive from the phone or Telegram |
+| `joey_phone.py`, `joey_certs.py` | Home Wi-Fi phone server with its own HTTPS certificates |
+| `joey_telegram.py` | Owner-only Telegram bot link |
+
+## Private files
+
+The app creates files such as `joey_memory.json`, `joey_calendars.json`, `joey_phone.json`,
+`joey_telegram.json` and `*.key` next to the code. They contain personal data and secrets, so
+`.gitignore` keeps them out of the repository. Never upload them.

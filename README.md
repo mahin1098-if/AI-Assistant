@@ -15,7 +15,7 @@ It runs in two places:
 | PC control (apps, music, timers, calendar, screen) | ✅ | — |
 | Memory & chat history | Saved on the PC | Saved on the phone |
 
-> **The two apps are independent.** The phone app talks directly to Claude and never connects to the PC, so it keeps its own memories and chats — what you tell one doesn't carry over to the other. To use the PC's features and memory from a phone, the desktop app has its own home Wi-Fi phone page and Telegram bot (see [desktop/README.md](desktop/README.md)).
+> **The two apps are independent.** The phone app talks directly to Claude and never connects to the PC, so it keeps its own memories and chats — what you tell one doesn't carry over to the other. To use the PC's features and memory from a phone, the desktop app has its own home Wi-Fi phone page and Telegram bot — [here's how to set them up](desktop/README.md#use-the-pc-version-from-your-phone).
 
 ## 📱 How to use it (5 minutes)
 
