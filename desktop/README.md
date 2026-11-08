@@ -31,6 +31,40 @@ Optional extras:
 | `python setup_phone.py` | Use it from your phone on home Wi-Fi |
 | `python setup_telegram.py` | Talk to it from anywhere through a private Telegram bot |
 
+## Use the PC version from your phone
+
+The phone app on GitHub Pages is separate from this one. To reach **this** version from your phone,
+with its memories, calendar, timers and PC control, use one of these. Joey must be running on the PC.
+
+### Option A: Home Wi-Fi phone page (voice, only at home)
+
+1. On the PC run `python setup_phone.py`. It shows a private link and a QR code. Keep the link private,
+   because it contains your key.
+2. Allow the phone-app ports through Windows Firewall, once. Open **PowerShell as administrator**
+   (right-click → Run as administrator) and run:
+   ```
+   New-NetFirewallRule -DisplayName "Joey phone app" -Direction Inbound -Protocol TCP -LocalPort 8765,8766 -Action Allow -RemoteAddress LocalSubnet
+   ```
+   This only lets devices on your home network in.
+3. Restart Joey on the PC. It should print `[phone app ready at http://...]`.
+4. Make sure your phone is on the **same Wi-Fi** as the PC, then scan the QR code.
+5. To use the microphone, the phone has to trust Joey's home certificate. The page that opens walks you through it:
+   - Tap **Download certificate** → **Allow**.
+   - iPhone: **Settings → Profile Downloaded → Install**.
+   - Then **Settings → General → About → Certificate Trust Settings** → switch on **Joey Home Certificate**.
+6. Go back to the page, tap **Open Joey with voice**, and then **Share → Add to Home Screen**.
+
+If it stops working one day, your PC's home address has probably changed. Run `python setup_phone.py` again.
+
+### Option B: Telegram (text, from anywhere)
+
+1. In Telegram, open **@BotFather** (blue tick), send `/newbot`, and pick a name and a username ending in `bot`.
+2. BotFather replies with a **token**. Copy it and keep it private, because anyone with it controls the bot.
+3. On the PC run `python setup_telegram.py` and paste the token.
+4. In Telegram, open your new bot and press **Start**. The bot locks itself to your account, so nobody else can use it.
+5. Restart Joey on the PC. Message the bot from anywhere and Joey or Ryan reply, as long as the PC is on.
+6. Voice notes work too: hold the mic in Telegram and talk. They reply in text and with a voice note in their own voice (needs `pip install av`).
+
 ## How the code is organised
 
 | File | Job |

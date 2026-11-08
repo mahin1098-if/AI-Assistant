@@ -26,6 +26,15 @@ import tkinter as tk
 from joey_lipsync import LipSync
 
 FOLDER = os.path.dirname(os.path.abspath(__file__))
+START_TIME = time.time()
+KEEP_RUNNING_WHEN_CLOSED = True   # the X button hides Joey instead of shutting her down
+INSTANCE_PORT = 8764              # lets a second "Start Joey" just bring back the one already running
+SHOW_STARTUP_TIMES = True   # prints how long each startup step takes (to find what's slow)
+
+
+def step(name):
+    if SHOW_STARTUP_TIMES:
+        print(f"  [startup {time.time() - START_TIME:5.1f}s] {name}", flush=True)
 
 # With no console window (pythonw), send messages to a log file instead
 if sys.stdout is None or sys.stderr is None:
@@ -123,7 +132,9 @@ class JoeyWindow:
         self.root.configure(bg=BG)
         self.root.geometry("352x600" if SHOW_FACE else "340x500")
         self.root.minsize(300, 440)
-        self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self.root.protocol("WM_DELETE_WINDOW", self.hide if KEEP_RUNNING_WHEN_CLOSED else self.close)
+        self.on_hidden = None         # set by the app: what to do the first time the window is hidden
+        self.hidden_before = False
 
         if SHOW_FACE:
             self.face = Face()
@@ -247,6 +258,8 @@ class JoeyWindow:
                     self.joey_label.config(text=value)
                 elif kind == "sources":
                     self._show_sources(value)
+                elif kind == "show":
+                    self._show_window()
                 elif kind == "quit":
                     self.close()
                     return
@@ -347,6 +360,25 @@ class JoeyWindow:
         if self.on_typed:
             self.on_typed(text)
 
+    def show(self):
+        """Bring the window back (safe from any thread)."""
+        self.events.put(("show", None))
+
+    def hide(self):
+        self.root.withdraw()
+        print("  [Joey is still running in the background - open her again, say \"Hey Joey\", "
+              "or say/type \"shut down\" to quit]")
+        if not self.hidden_before and self.on_hidden:
+            self.hidden_before = True
+            threading.Thread(target=self.on_hidden, daemon=True).start()
+
+    def _show_window(self):
+        self.root.deiconify()
+        self.root.lift()
+        self.root.attributes("-topmost", True)                         # pop in front of other windows,
+        self.root.after(300, lambda: self.root.attributes("-topmost", False))  # then behave normally
+        self.root.focus_force()
+
     def close(self):
         try:
             self.root.destroy()
@@ -360,6 +392,7 @@ class JoeyWindow:
 # ---------- Joey's brain, ears and mouth, running in the background ----------
 
 def start_joey(ui: JoeyWindow):
+    step("window open, loading Joey's parts")
     from joey import CHARACTERS, DEFAULT_CHARACTER, Brain
     import joey_voice
     from joey_voice import measure_background_noise, speak
@@ -460,33 +493,55 @@ def start_joey(ui: JoeyWindow):
 
         threading.Thread(target=work, daemon=True).start()
 
+    # Start loading the voices straight away, each in its own thread, while everything else gets ready.
+    # Only the talking-face looks need the slower sound-by-sound voice timing.
+    joey_voice.SOUND_TIMING = AVATAR in ("hologram", "face")
+
+    def preload(key):
+        try:
+            joey_voice._load_piper(CHARACTERS[key]["voice"])
+            step(f"{CHARACTERS[key]['name']}'s voice loaded")
+        except Exception as e:
+            print(f"Couldn't preload a voice: {e}")
+
+    first_voice = None
+    if joey_voice.USE_NATURAL_VOICE:
+        for key in CHARACTERS:
+            t = threading.Thread(target=preload, args=(key,), daemon=True)
+            t.start()
+            if key == DEFAULT_CHARACTER:
+                first_voice = t
+
     try:
         brains = {key: Brain(key) for key in CHARACTERS}
     except Exception:
         ui.error('No Claude API key found. Run:  setx ANTHROPIC_API_KEY "your-key"  then restart.')
         return
+    step("brains ready")
     duet = Duet(brains)
     for key in CHARACTERS:
         ui.set_character(key, CHARACTERS[key]["name"])
     switch_to(DEFAULT_CHARACTER)
+
     try:
         threshold = measure_background_noise()
     except Exception as e:
         ui.error(f"Couldn't open the microphone: {e}")
         return
+    step("microphone ready")
 
     joey_powers.announce = announce
     joey_voice.on_speech = ui.lipsync  # the display follows the voice
-    try:
-        if joey_voice.USE_NATURAL_VOICE:  # get the voices ready now, so the first reply isn't slow
-            for c in CHARACTERS.values():
-                joey_voice._load_piper(c["voice"])
-    except Exception as e:
-        print(f"Couldn't preload a voice: {e}")
+    ui.on_hidden = lambda: say("I'll keep running in the background. Just say Hey Joey when you need me.",
+                               current["who"])
     ui.on_typed = typed
     start_phone_link(ui, brains, brain_lock, duet, CHARACTERS, DEFAULT_CHARACTER)
     start_phone_app(ui, brains, brain_lock, duet)
+    step("phone links started")
+    if first_voice:
+        first_voice.join()       # Joey's voice is ready: she can talk now
     if joey_briefing.due_today():          # first start of the day: the morning briefing
+        step("making the morning briefing")
         try:
             ui.set_state("thinking")
             with brain_lock:
@@ -495,7 +550,9 @@ def start_joey(ui: JoeyWindow):
             print(f"Briefing failed: {e}")
             say(f"{CHARACTERS[DEFAULT_CHARACTER]['name']} online.", DEFAULT_CHARACTER)
     else:
+        step("saying hello")
         say(f"{CHARACTERS[DEFAULT_CHARACTER]['name']} online.", DEFAULT_CHARACTER)
+        step("hello finished")
         for key in CHARACTERS:
             if key != DEFAULT_CHARACTER:
                 switch_to(key)
@@ -513,6 +570,7 @@ def start_joey(ui: JoeyWindow):
             continue
         who, command = found
         switch_to(who)
+        ui.show()                                 # "Hey Joey" brings the window back if it was hidden
 
         ui.you(text)
         beep(who)
@@ -591,6 +649,8 @@ def start_phone_link(ui, brains, brain_lock, duet, CHARACTERS, DEFAULT_CHARACTER
         if sources:
             message += "\n\nSources:\n" + "\n".join(f"• {title}: {url}" for title, url in sources[:4])
         link.send(message)
+        if hasattr(link, "say"):
+            link.say(text, who)   # also as a voice note, when you sent one
         ui.joey(f"📱 {name}: {text}")
 
     def on_message(text):
@@ -618,8 +678,65 @@ def start_phone_app(ui, brains, brain_lock, duet):
         print(f"Phone app couldn't start: {e}")
 
 
+def already_running():
+    """If Joey is already running, ask her to show herself and return True."""
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", INSTANCE_PORT), timeout=1) as s:
+            s.sendall(b"show")
+        return True
+    except OSError:
+        return False
+
+
+def listen_for_reopen(ui):
+    """When you start Joey again while she's running, just bring the window back."""
+    import socket
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        server.bind(("127.0.0.1", INSTANCE_PORT))   # this PC only
+    except OSError:
+        return
+    server.listen(2)
+
+    def loop():
+        while True:
+            try:
+                conn, _ = server.accept()
+                with conn:
+                    if conn.recv(16) == b"show":
+                        ui.show()
+            except OSError:
+                time.sleep(1)
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
+def tray_icon(ui):
+    """A small Joey icon by the clock: click to open, right-click to quit (needs: pip install pystray)."""
+    try:
+        import pystray
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.ellipse([4, 4, 60, 60], outline=(90, 190, 255, 255), width=6)
+    d.ellipse([22, 22, 42, 42], fill=(220, 240, 255, 255))
+    menu = pystray.Menu(pystray.MenuItem("Open Joey", lambda: ui.show(), default=True),
+                        pystray.MenuItem("Quit Joey", lambda icon: (icon.stop(), ui.quit())))
+    try:
+        pystray.Icon("joey", img, "Joey & Ryan", menu).run_detached()
+    except Exception as e:
+        print(f"  [tray icon unavailable: {e}]")
+
+
 def main():
+    if already_running():          # Joey is already running in the background: she just pops up
+        return
     ui = JoeyWindow("Joey & Ryan")
+    listen_for_reopen(ui)
+    tray_icon(ui)
 
     def background():
         try:

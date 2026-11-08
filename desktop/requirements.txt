@@ -10,3 +10,5 @@ icalendar
 recurring-ical-events
 cryptography
 qrcode
+av
+pystray

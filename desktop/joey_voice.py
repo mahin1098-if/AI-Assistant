@@ -36,6 +36,7 @@ LANGUAGE = "en-AU"   # accent Joey listens for (en-US, en-GB, en-IN ...)
 PIPER_VOICE = "en_US-lessac-medium"  # fallback only: each character's voice is set in CHARACTERS in joey.py
 PIPER_SPEED = 1.0          # 0.9 = a bit faster, 1.15 = a bit slower
 USE_NATURAL_VOICE = True   # set to False to go back to the robotic offline Windows voice
+SOUND_TIMING = False       # exact sound-by-sound timing, only needed by the talking-face looks (slower to load)
 
 # Robotic offline Windows voice (used if the natural voice can't connect)
 VOICE_INDEX = None   # set to 0, 1, 2 ... to pick a different Windows voice
@@ -150,11 +151,18 @@ _speak_lock = threading.Lock()  # stops two things talking at once (e.g. a timer
 VOICES_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voices")
 _piper = {}  # the loaded voice, kept so it only loads once
 _piper_lock = threading.Lock()
+_voice_locks = {}   # one lock per voice, so Joey's and Ryan's voices can load at the same time
 
 
 def _load_piper(voice_name=None):
+    ready = _piper.get(voice_name or PIPER_VOICE)
+    if ready:                 # already loaded: don't wait while another voice is loading
+        return ready
+    name = voice_name or PIPER_VOICE
     with _piper_lock:
-        return _load_piper_locked(voice_name or PIPER_VOICE)
+        lock = _voice_locks.setdefault(name, threading.Lock())
+    with lock:
+        return _load_piper_locked(name)
 
 
 def _load_piper_locked(PIPER_VOICE):
@@ -170,11 +178,14 @@ def _load_piper_locked(PIPER_VOICE):
         if not model.exists():
             print(f"  [downloading voice {PIPER_VOICE}, one time only, please wait...]")
             download_voice(PIPER_VOICE, folder)
-        try:
-            # with sound-by-sound timing for lip sync (needs: pip install onnx)
-            _piper[PIPER_VOICE] = PiperVoice.load(model, include_alignments=True)
-        except Exception as e:
-            print(f"  [lip-sync timing unavailable ({e}); run: pip install onnx]")
+        if SOUND_TIMING:
+            try:
+                # with sound-by-sound timing for lip sync (needs: pip install onnx)
+                _piper[PIPER_VOICE] = PiperVoice.load(model, include_alignments=True)
+            except Exception as e:
+                print(f"  [lip-sync timing unavailable ({e}); run: pip install onnx]")
+                _piper[PIPER_VOICE] = PiperVoice.load(model)
+        else:
             _piper[PIPER_VOICE] = PiperVoice.load(model)
     return _piper[PIPER_VOICE]
 
@@ -212,7 +223,7 @@ def synthesize(text: str, voice_name=None, wav_target=None):
     with wave.open(wav_target, "wb") as wav_file:
         first = True
         for chunk in voice.synthesize(text, syn_config=SynthesisConfig(length_scale=PIPER_SPEED),
-                                      include_alignments=True):
+                                      include_alignments=SOUND_TIMING):
             if first:
                 wav_file.setframerate(chunk.sample_rate)
                 wav_file.setsampwidth(chunk.sample_width)
