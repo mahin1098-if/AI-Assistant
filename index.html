@@ -61,11 +61,26 @@
   .small { background:#1d2638; color:var(--text); border:none; border-radius:10px; padding:10px; font-size:14px; flex:0 0 auto; }
   .check { display:flex; align-items:center; gap:10px; margin-top:12px; font-size:15px; }
   .check input { width:auto; }
+  /* welcome guide */
+  .help { position:absolute; left:0; background:none; border:1px solid var(--line); color:var(--muted);
+    width:32px; height:32px; border-radius:50%; font-size:16px; font-weight:700; }
+  .guide { counter-reset:step; margin:6px 0 4px; }
+  .step { display:flex; gap:12px; padding:12px 0; border-top:1px solid var(--line); }
+  .step:first-child { border-top:none; }
+  .step::before { counter-increment:step; content:counter(step); flex:0 0 28px; height:28px; border-radius:50%;
+    background:var(--c); color:var(--bg); font-weight:700; display:grid; place-items:center; font-size:14px; }
+  .step b { display:block; margin-bottom:3px; }
+  .step span { color:var(--muted); font-size:14px; line-height:1.45; }
+  .step a { color:#6fb6ff; }
+  .try { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+    font-size:14px; color:var(--muted); line-height:1.6; margin-top:8px; }
+  .try i { color:var(--text); font-style:normal; }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="top">
+    <button class="help" id="help" aria-label="How to use">?</button>
     <div class="tabs" id="tabs"></div>
     <button class="gear" id="gear" aria-label="Settings">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4L10.7 6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/></svg>
@@ -81,6 +96,28 @@
     </button>
   </form>
 </div>
+
+<div class="sheet" id="welcome"><div class="panel">
+  <h3>Welcome to Joey &amp; Ryan 👋</h3>
+  <p>Two AI assistants you can talk to by voice. Setup takes about 5 minutes, once.</p>
+  <div class="guide">
+    <div class="step"><div><b>Get a Claude API key</b>
+      <span>Sign up at <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>.
+      Under <b style="display:inline">Billing</b>, add a little credit (you pay only for what you use, usually cents per chat)
+      and set a monthly limit. Then go to <b style="display:inline">API keys → Create key</b> and copy it - it starts with <code>sk-ant-</code>.</span></div></div>
+    <div class="step"><div><b>Paste it in Settings</b>
+      <span>Tap the button below, paste your key and tap Save. It's stored only on this device - nobody else sees it.</span></div></div>
+    <div class="step"><div><b>Add it to your home screen</b>
+      <span id="install-tip"></span></div></div>
+    <div class="step"><div><b>Tap the mic and talk</b>
+      <span>Allow the microphone when asked. Things to try:</span>
+      <div class="try"><i>"What's the weather today?"</i><br><i>"Switch to Ryan"</i><br>
+        <i>"Joey and Ryan, debate pineapple on pizza"</i><br><i>"Remember my favourite colour is blue"</i><br>
+        <i>"What's in the news?"</i><br>Say <i>"stop"</i> or tap the mic to interrupt.</div></div></div>
+  </div>
+  <button class="btn" id="w-go" type="button">I have my key - open Settings</button>
+  <button class="btn alt" id="w-close" type="button">Close</button>
+</div></div>
 
 <div class="sheet" id="sheet"><div class="panel">
   <h3>Settings</h3>
@@ -383,7 +420,7 @@ let busy = false;
 async function handle(text){
   text = text.trim(); if (!text) return;
   if (busy && /^(stop|enough|quiet|shut up)/i.test(text)){ stopTalking(); return; }
-  if (!settings.key){ openSettings(); return; }
+  if (!settings.key){ openWelcome(); return; }
   unlockSpeech();
   if (busy){ stopTalking(); while (busy) await sleep(50); }   // finish off whatever was happening first
   stopTalking(); cancelled = false; busy = true;
@@ -462,6 +499,22 @@ $("#s-forget").onclick = () => { if (confirm("Erase everything Joey and Ryan rem
   facts = []; history = {joey:[], ryan:[]}; store.set("facts", []); store.set("history.joey", []); store.set("history.ryan", []);
   $("#log").innerHTML = ""; alert("Done."); } };
 
+// ================= welcome guide =================
+function installTip(){
+  const ua = navigator.userAgent, installed = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  if (installed) return "Done - you're already using the home screen app.";
+  if (/iPhone|iPad|iPod/.test(ua)) return /CriOS|FxiOS|EdgiOS|GSA/.test(ua)
+    ? "Open this page in <b style='display:inline'>Safari</b> first. Then tap <b style='display:inline'>Share</b> (or ••• → Share) → <b style='display:inline'>Add to Home Screen</b> → Add. If you already pasted your key, paste it again inside the new app."
+    : "Tap <b style='display:inline'>Share</b> (or ••• → Share) → scroll down → <b style='display:inline'>Add to Home Screen</b> → Add. Then open it from the new icon (paste your key again there if it asks).";
+  if (/Android/.test(ua)) return "In Chrome, tap the <b style='display:inline'>⋮</b> menu → <b style='display:inline'>Add to Home screen</b> (or Install app).";
+  return "Optional on a computer. In Chrome or Edge, use the install icon in the address bar. Works best in Chrome.";
+}
+function openWelcome(){ $("#install-tip").innerHTML = installTip(); $("#welcome").classList.add("open"); }
+$("#help").onclick = openWelcome;
+$("#w-close").onclick = () => $("#welcome").classList.remove("open");
+$("#w-go").onclick = () => { $("#welcome").classList.remove("open"); openSettings(); };
+$("#welcome").onclick = e => { if (e.target.id === "welcome") $("#welcome").classList.remove("open"); };
+
 // ================= the HUD ring =================
 const cv = $("#ring"), g = cv.getContext("2d"), N = 380, pts = [];
 for (let i = 0; i < N; i++){ const y = 1 - 2*(i+.5)/N, r = Math.sqrt(1-y*y), a = i*2.39996; pts.push([Math.cos(a)*r, y, Math.sin(a)*r]); }
@@ -498,8 +551,8 @@ function frame(t){
 setActive(who);
 requestAnimationFrame(frame);
 if (!settings.key){
-  addMsg("bot", "<b>Joey</b> Hi! First, paste your Claude API key in Settings so I can think. It stays on this phone only.", "joey");
-  openSettings();
+  addMsg("bot", "<b>Joey</b> Hi! Tap <b>?</b> at the top any time to see how to set me up.", "joey");
+  openWelcome();
 } else {
   addMsg("bot", `<b>${esc(CHARACTERS[who].name)}</b> Hi! Tap the mic and talk, or type below.`, who);
 }
