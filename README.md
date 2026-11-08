@@ -11,9 +11,21 @@ It runs in two places:
 | How it runs | Always-on app on the PC, starts with Windows | Web app added to the iPhone home screen |
 | Wake word | "Hey Joey" / "Hey Ryan" | Tap the mic |
 | Voice | Natural offline voices (Piper) | The phone's built-in voices |
-| Works away from home | — | ✅ anywhere with internet |
+| Works away from home | Through the private Telegram bot (PC must be on) | ✅ anywhere with internet, PC not needed |
+| PC control (apps, music, timers, calendar, screen) | ✅ | — |
+| Memory & chat history | Saved on the PC | Saved on the phone |
 
-**Try the phone app:** https://mahin1098-if.github.io/AI-Assistant/ (needs your own Claude API key, which stays on your device).
+> **The two apps are independent.** The phone app talks directly to Claude and never connects to the PC, so it keeps its own memories and chats — what you tell one doesn't carry over to the other. To use the PC's features and memory from a phone, the desktop app has its own home Wi-Fi phone page and Telegram bot (see [desktop/README.md](desktop/README.md)).
+
+## 📱 How to use it (5 minutes)
+
+1. **Get a Claude API key** — sign up at [console.anthropic.com](https://console.anthropic.com), add a little credit under **Billing** (you pay only for what you use) and set a monthly limit. Then **API keys → Create key** and copy it (starts with `sk-ant-`).
+2. **Open the app** — **https://mahin1098-if.github.io/AI-Assistant/** (iPhone: Safari · Android / computer: Chrome).
+3. **Paste your key** — tap **⚙**, paste it, tap **Save**. It's stored only on your device.
+4. **Add it to your home screen** — iPhone: **Share → Add to Home Screen**. Android: **⋮ → Add to Home screen**.
+5. **Tap the mic and talk** — try *"What's the weather?"*, *"Switch to Ryan"* or *"Joey and Ryan, debate pineapple on pizza"*.
+
+Stuck? Tap **?** at the top of the app for the same guide.
 
 <p>
   <img src="phone-app.png" alt="Phone app" width="260">
