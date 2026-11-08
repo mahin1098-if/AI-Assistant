@@ -6,7 +6,7 @@ or even debate a topic between themselves.
 
 It runs in two places:
 
-| | **Desktop app** (Windows, Python) | **Phone app** (this repository) |
+| | **Desktop app** (Windows, Python) | **Phone app** |
 |---|---|---|
 | How it runs | Always-on app on the PC, starts with Windows | Web app added to the iPhone home screen |
 | Wake word | "Hey Joey" / "Hey Ryan" | Tap the mic |
@@ -16,9 +16,12 @@ It runs in two places:
 **Try the phone app:** https://mahin1098-if.github.io/AI-Assistant/ (needs your own Claude API key, which stays on your device).
 
 <p>
-     <img src="phone-app.png" alt="Phone app" width="260">
-     <img src="pc-app.png" alt="Desktop app states" width="560">
+  <img src="phone-app.png" alt="Phone app" width="260">
+  &nbsp;
+  <img src="pc-app.png" alt="Desktop app states" width="560">
 </p>
+
+▶ [Watch the desktop app talking](joey_hud_demo.mp4)
 
 ## Features
 
@@ -49,6 +52,13 @@ It runs in two places:
 - **Phone app:** a single-file web app (HTML/CSS/JavaScript, no framework, no server). It calls the Claude API directly from the browser, uses the browser's speech recognition and speech synthesis, and stores settings and memory in `localStorage`. Hosted free on GitHub Pages.
 - **Desktop voice:** microphone capture with automatic background-noise calibration, Google speech recognition, and Piper neural text-to-speech, with the HUD synced to the audio.
 
+## What's in this repository
+
+| Folder / file | What it is |
+|---|---|
+| `index.html`, `manifest.webmanifest`, `icon-*.png` | The phone app (served by GitHub Pages) |
+| `desktop/` | The Windows desktop app in Python - see [desktop/README.md](desktop/README.md) |
+
 ## Tech stack
 
 **Desktop:** Python · Anthropic SDK · Piper TTS · SpeechRecognition · sounddevice · Tkinter + Pillow · icalendar · `cryptography` (home HTTPS certificates) · Telegram Bot API
@@ -72,7 +82,7 @@ It runs in two places:
 ## Running it yourself
 
 **Phone:** open the link above in Safari → ⚙ → paste a Claude API key → Share → Add to Home Screen.
-**Desktop:** Python 3.11+, `pip install anthropic piper-tts SpeechRecognition sounddevice numpy pillow icalendar recurring-ical-events`, set `ANTHROPIC_API_KEY`, then `python joey_app.py`.
+**Desktop:** see [desktop/README.md](desktop/README.md).
 
 ---
 Built by Mahin, with help from Claude as a coding assistant.

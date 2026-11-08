@@ -1,0 +1,17 @@
+# Private files the desktop app creates - never upload these
+joey_calendars.json
+joey_phone.json
+joey_telegram.json
+joey_memory.json
+joey_history*.json
+joey_contacts.json
+joey_briefing.json
+joey_notes*.txt
+*.key
+joey_ca.crt
+joey_server.crt
+.env
+__pycache__/
+voices/
+*.onnx
+*.onnx.json

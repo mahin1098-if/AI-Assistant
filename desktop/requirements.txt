@@ -1,0 +1,12 @@
+anthropic
+piper-tts
+onnxruntime
+SpeechRecognition
+sounddevice
+numpy
+pillow
+pyttsx3
+icalendar
+recurring-ical-events
+cryptography
+qrcode
