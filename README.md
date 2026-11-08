@@ -45,7 +45,8 @@ Stuck? Tap **?** at the top of the app for the same guide.
 - **PC control** *(desktop)* — open apps, play music, set timers, take notes, draft WhatsApp messages and emails, read your Google Calendar.
 - **Screen help** *(desktop)* — "what's this error on my screen?" takes a screenshot and explains it.
 - **HUD interface** — an animated ring that pulses in time with the voice.
-- **Remote access** *(desktop)* — talk to the PC version from your phone over home Wi-Fi (self-signed HTTPS) or a private Telegram bot.
+- **Remote access** *(desktop)* — talk to the PC version from your phone over home Wi-Fi (self-signed HTTPS) or a private Telegram bot, by text or voice notes (they reply with a voice note in their own voice).
+- **Always ready** *(desktop)* — starts with Windows, loads both voices in parallel, and closing the window just hides it to the background (with a tray icon), so it reopens instantly.
 
 ## How it works
 
@@ -60,7 +61,7 @@ Stuck? Tap **?** at the top of the app for the same guide.
 ```
 
 - **Brain:** Anthropic Claude API with tool use. Each character has its own system prompt and history. A manual tool loop runs the tools Claude asks for and sends the results back; Claude's server-side web search adds cited sources.
-- **Speed tricks:** the next line of a Joey–Ryan debate is generated while the current one is being spoken; the morning briefing gathers weather, calendar and news in parallel.
+- **Speed tricks:** both neural voices load in parallel while the mic calibrates; the next line of a Joey–Ryan debate is generated while the current one is being spoken; the morning briefing gathers weather, calendar and news in parallel.
 - **Phone app:** a single-file web app (HTML/CSS/JavaScript, no framework, no server). It calls the Claude API directly from the browser, uses the browser's speech recognition and speech synthesis, and stores settings and memory in `localStorage`. Hosted free on GitHub Pages.
 - **Desktop voice:** microphone capture with automatic background-noise calibration, Google speech recognition, and Piper neural text-to-speech, with the HUD synced to the audio.
 

@@ -22,6 +22,15 @@ an animated HUD window, and tools that control the PC.
    ```
    The first start downloads the two Piper voices.
 
+Using it:
+
+- Say **"Hey Joey"** or **"Hey Ryan"**, or type in the box.
+- Closing the window (X) only **hides** Joey: she keeps listening and Telegram keeps working.
+  Open her again with **Start Joey.bat**, by saying "Hey Joey", or from the tray icon by the clock.
+- To quit completely, say or type **"shut down"**, or right-click the tray icon → **Quit Joey**.
+- Settings are at the top of each file, for example `KEEP_RUNNING_WHEN_CLOSED` in `joey_app.py`
+  and `VOICE_REPLIES` in `joey_telegram.py`.
+
 Optional extras:
 
 | Run | To |
