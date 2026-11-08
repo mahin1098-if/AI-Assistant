@@ -16,9 +16,8 @@ It runs in two places:
 **Try the phone app:** https://mahin1098-if.github.io/AI-Assistant/ (needs your own Claude API key, which stays on your device).
 
 <p>
-  <img src="screenshots/phone-app.png" alt="Phone app" width="260">
-  &nbsp;
-  <img src="screenshots/pc-app.png" alt="Desktop app states" width="560">
+     <img src="phone-app.png" alt="Phone app" width="260">
+     <img src="pc-app.png" alt="Desktop app states" width="560">
 </p>
 
 ## Features
